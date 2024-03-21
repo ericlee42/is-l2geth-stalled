@@ -63,7 +63,7 @@ func GetRemote(ctx context.Context, endpoint string) (*Block, error) {
 	return &block, nil
 }
 
-func GetLocal(ctx context.Context, file string) (*Block, error) {
+func GetLocal(file string) (*Block, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -93,21 +93,21 @@ func main() {
 	var (
 		FilePath string
 		RPC      string
-		Timeout  time.Duration
 
-		FailedIfStalledInSecond int64
+		Timeout         time.Duration
+		StalledDuration time.Duration
 	)
 
-	flag.StringVar(&FilePath, "file", "/root/.ethereum/latest.json", "block state file path")
-	flag.DurationVar(&Timeout, "timeout", time.Second*10, "timeout")
+	flag.StringVar(&FilePath, "file", "/tmp/is-l2geth-stalled.json", "an ephemeral file path")
+	flag.DurationVar(&Timeout, "timeout", time.Second*3, "the timeout to send rpc request")
 	flag.StringVar(&RPC, "rpc", "http://localhost:8545", "geth rpc endpoint")
-	flag.Int64Var(&FailedIfStalledInSecond, "stalled", 120, "check if the geth is stalled")
+	flag.DurationVar(&StalledDuration, "duration", 120*time.Second, "duration to check if the l2geth is stalled")
 	flag.Parse()
 
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 
-	local, err := GetLocal(ctx, FilePath)
+	local, err := GetLocal(FilePath)
 	if err != nil {
 		log.Fatalln("failed to get local file", err)
 	}
@@ -117,9 +117,8 @@ func main() {
 		log.Fatalln("failed to get block from rpc", err)
 	}
 
-	if local != nil && remote.Number == local.Number &&
-		remote.LastSeen.Sub(local.LastSeen) > time.Duration(FailedIfStalledInSecond)*time.Second {
-		log.Fatalf("geth is stalled at %s in the past %d seconds", remote.Number, FailedIfStalledInSecond)
+	if local != nil && remote.Number == local.Number && remote.LastSeen.Sub(local.LastSeen) > StalledDuration {
+		log.Fatalf("geth is stalled at %s in the past %s", remote.Number, StalledDuration)
 	}
 
 	if err := SaveLocal(remote, FilePath); err != nil {
