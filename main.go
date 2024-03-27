@@ -121,7 +121,7 @@ func main() {
 		log.Fatalf("geth is stalled at %s in the past %s", remote.Number, StalledDuration)
 	}
 
-	if remote.Number != local.Number {
+	if local == nil || remote.Number != local.Number {
 		if err := SaveLocal(remote, FilePath); err != nil {
 			log.Fatalln("failed to save the block file", err)
 		}
