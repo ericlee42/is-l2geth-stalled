@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.22.1-alpine as compiler
+FROM golang:1.22.2-alpine as compiler
 WORKDIR /app
 COPY . .
 RUN go install
